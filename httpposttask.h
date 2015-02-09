@@ -39,6 +39,8 @@ public:
 
 public:
 	const range &PostRng() const { return m_postRng; }
+	std::string &HttpHdr() { return m_strHttpHdr; }
+	const std::string &HttpHdr() const { return m_strHttpHdr; }
 	std::string &HttpBody() { return m_strHttpBody; }
 	const std::string &HttpBody() const { return m_strHttpBody; }
 
@@ -58,6 +60,7 @@ protected:
 	curl_slist *m_pHdrList;
 	curl_slist *m_pMultiPartHdrList;
 	std::string m_strMD5;
+	std::string m_strHttpHdr;
 	std::string m_strHttpBody;
 	char *m_pPostData;
 	range m_postRng;

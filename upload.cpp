@@ -1,5 +1,6 @@
 #include "upload.h"
 #include "httptask.h"
+#include "utility.h"
 
 CUpload::CUpload(CURLM *pMultiHandle)
 	: m_pMultiHandle(pMultiHandle)
@@ -17,10 +18,6 @@ CUpload::~CUpload()
 	for (TCHttpTaskVec::iterator iter = m_httpTaskVec.begin();
 			iter != m_httpTaskVec.end(); ++iter)
 	{
-		if (NULL != *iter)
-		{
-			delete *iter;
-			*iter = NULL;
-		}
+		CToolKit::ReleasePtr<CHttpTask>(*iter);
 	}
 }

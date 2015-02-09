@@ -7,6 +7,7 @@
 
 #include "uploadmgr.h"
 #include "fileupload.h"
+#include "utility.h"
 
 CUploadMgr::CUploadMgr()
 	: m_pUpload(NULL)
@@ -17,19 +18,11 @@ CUploadMgr::CUploadMgr()
 
 CUploadMgr::~CUploadMgr()
 {
-	if (NULL != m_pUpload)
-	{
-		delete m_pUpload;
-		m_pUpload = NULL;
-	}
+	CToolKit::ReleasePtr<CUpload>(m_pUpload);
 	for (TCUploadVec::iterator iter = m_uploadVec.begin();
 		iter != m_uploadVec.end(); ++iter)
 	{
-		if (NULL != *iter)
-		{
-			delete *iter;
-			*iter = NULL;
-		}
+		CToolKit::ReleasePtr<CUpload>(*iter);
 	}
 	m_pMultiHandle = NULL;
 }

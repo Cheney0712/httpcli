@@ -36,6 +36,7 @@ CHttpPostTask::CHttpPostTask(CURLM *pMultiHandle, CUpload *pUpload)
 	, m_pHdrList(NULL)
 	, m_pMultiPartHdrList(NULL)
 	, m_strMD5()
+	, m_strHttpHdr()
 	, m_strHttpBody()
 	, m_pPostData(NULL)
 	, m_postRng()
@@ -83,10 +84,10 @@ void CHttpPostTask::Init(const range &postRng)
 	curl_easy_setopt(m_pCurl, CURLOPT_NOPROGRESS, true);
 	/* tell libcurl to follow redirection */
 	curl_easy_setopt(m_pCurl, CURLOPT_FOLLOWLOCATION, 1L);
-	/* make connection get closed at once after use */
-	curl_easy_setopt(m_pCurl, CURLOPT_FORBID_REUSE, 1L);
-	/* Set to 1 to make the next transfer use a new (fresh) connection by force instead of trying to re-use an existing one. */
-	curl_easy_setopt(m_pCurl, CURLOPT_FRESH_CONNECT, 1L);
+//	/* make connection get closed at once after use */
+//	curl_easy_setopt(m_pCurl, CURLOPT_FORBID_REUSE, 1L);
+//	/* Set to 1 to make the next transfer use a new (fresh) connection by force instead of trying to re-use an existing one. */
+//	curl_easy_setopt(m_pCurl, CURLOPT_FRESH_CONNECT, 1L);
 }
 
 int CHttpPostTask::PostEntireFile()
@@ -113,11 +114,6 @@ int CHttpPostTask::PostEntireFile()
 
 	m_pHdrList = curl_slist_append(m_pHdrList, "Expect: ");
 	std::ostringstream ostrm;
-	{	// Content-Length
-		ostrm << HTTP_HEAD_FIELD_CONTENT_LENGTH << m_postRng.length();
-		m_pHdrList = curl_slist_append(m_pHdrList, ostrm.str().c_str());
-	}
-	ostrm.clear(); ostrm.str("");
 	{	// Content-Range
 		ostrm << HTTP_HEAD_FIELD_CONTENT_RANGE << "bytes 0-" << param.FileSize() - 1 << "/" << param.FileSize();
 		m_pHdrList = curl_slist_append(m_pHdrList, ostrm.str().c_str());
@@ -139,9 +135,8 @@ int CHttpPostTask::PostEntireFile()
 		ostrm << HTTP_HEAD_FIELD_CONTENT_TYPE << HTTP_MEDIA_TYPE_APPLICATION_OSTRM;
 		m_pMultiPartHdrList = curl_slist_append(m_pMultiPartHdrList, ostrm.str().c_str());
 	}
-	curl_formadd(&m_pFormPost, &m_pLastPtr, CURLFORM_COPYNAME, "sendfile",
-			CURLFORM_FILENAME, param.FileName().c_str(), CURLFORM_PTRCONTENTS,
-			m_pPostData, CURLFORM_CONTENTSLENGTH, m_postRng.length(),
+	curl_formadd(&m_pFormPost, &m_pLastPtr, CURLFORM_COPYNAME, param.FileName().c_str(),
+			CURLFORM_PTRCONTENTS, m_pPostData, CURLFORM_CONTENTSLENGTH, m_postRng.length(),
 			CURLFORM_CONTENTHEADER, m_pMultiPartHdrList, CURLFORM_END);
 
 	curl_easy_setopt(m_pCurl, CURLOPT_HTTPHEADER, m_pHdrList);
@@ -157,10 +152,10 @@ int CHttpPostTask::UpRecovery()
 {
 #if 0
 	POST /upload/?key=iN7NgwM31j4-BZacMj HTTP/1.1
-		Host: 192.168.200.15
-		Content-Length: 0
-		Content-Range: bytes */fsize
-		Connection: close
+	Host: 192.168.200.15
+	Content-Length: 0
+	Content-Range: bytes */fsize
+	Connection: close
 #endif
 
 	THttpParam &param = CSingleton<CHttpCli>::Instance()->HttpParam();
@@ -205,11 +200,6 @@ int CHttpPostTask::PostBlock()
 	}
 	m_pHdrList = curl_slist_append(m_pHdrList, "Expect: ");
 	std::ostringstream ostrm;
-	{	// Content-Length
-		ostrm << HTTP_HEAD_FIELD_CONTENT_LENGTH << m_postRng.length();
-		m_pHdrList = curl_slist_append(m_pHdrList, ostrm.str().c_str());
-	}
-	ostrm.clear(); ostrm.str("");
 	{	// Content-Range
 		ostrm << HTTP_HEAD_FIELD_CONTENT_RANGE << "bytes " << m_postRng.pos()
 				<< "-" << m_postRng.pos() + m_postRng.length() - 1 << "/"
@@ -234,8 +224,8 @@ int CHttpPostTask::PostBlock()
 		m_pMultiPartHdrList = curl_slist_append(m_pMultiPartHdrList, ostrm.str().c_str());
 	}
 	curl_formadd(&m_pFormPost, &m_pLastPtr, CURLFORM_COPYNAME, param.FileName().c_str(),
-			CURLFORM_PTRCONTENTS, m_pPostData, CURLFORM_CONTENTSLENGTH,
-			m_postRng.length(), CURLFORM_CONTENTHEADER, m_pMultiPartHdrList);
+			CURLFORM_PTRCONTENTS, m_pPostData, CURLFORM_CONTENTSLENGTH, m_postRng.length(),
+			CURLFORM_CONTENTHEADER, m_pMultiPartHdrList, CURLFORM_END);
 
 	curl_easy_setopt(m_pCurl, CURLOPT_HTTPHEADER, m_pHdrList);
 	curl_easy_setopt(m_pCurl, CURLOPT_HTTPPOST, m_pFormPost);
@@ -291,7 +281,7 @@ int CHttpPostTask::CalcFileMd5(FILE *pFile, std::string &strFileMD5)
 	MD5_Init(&md5Engine);
 
 	m_pPostData = new char[m_postRng.length()];
-	memset(m_pPostData, 0, m_postRng.length());
+	memset(m_pPostData, 0xFF, m_postRng.length());
 
 	int64_t nCalcSize = 0, nLeftSize = 0, nNeedReadSize = 0;
 	for (;;)
@@ -310,7 +300,7 @@ int CHttpPostTask::CalcFileMd5(FILE *pFile, std::string &strFileMD5)
 			}
 			break;
 		}
-		MD5_Update(&md5Engine, pBuf, (unsigned long)nReadSize);
+		MD5_Update(&md5Engine, pBuf, (size_t)nReadSize);
 		if ((nCalcSize += nReadSize) >= (int64_t)m_postRng.length())
 		{
 			break;
@@ -341,8 +331,8 @@ size_t CHttpPostTask::HttpHeadProc(void *pData, size_t size, size_t nMemBlk, voi
 	CHttpPostTask *pHttpPostTask = static_cast<CHttpPostTask *>(pUserArg);
 	const char *pHttpHdr = static_cast<const char *>(pData);
 	size_t nHdrSize = size * nMemBlk;
-
-	HTTPCLI_LOG(param, LOGTYPE, "%s", pHttpHdr);
+	pHttpPostTask->HttpHdr().append(static_cast<const char *>(pData), nHdrSize);
+//	HTTPCLI_LOG(param, LOGTYPE, "%s", pHttpHdr);
 
 	long nHttpRespCode = 0;
 	curl_easy_getinfo(pHttpPostTask->Curl(), CURLINFO_RESPONSE_CODE, &nHttpRespCode);
@@ -430,7 +420,9 @@ size_t CHttpPostTask::WriteData(void *pData, size_t size, size_t nMemBlk, void *
 	curl_easy_getinfo(pHttpPostTask->Curl(), CURLINFO_SIZE_UPLOAD, &nUpSize);
 	if (nUpSize >= pHttpPostTask->PostRng().length())
 	{
-		HTTPCLI_LOG(param, LOGTYPE, "upload has completely: %s", pHttpPostTask->HttpBody().c_str());
+		HTTPCLI_LOG(param, LOGTYPE, "upload has completely: \r\n%s%s",
+				pHttpPostTask->HttpHdr().c_str(),
+				pHttpPostTask->HttpBody().c_str());
 		pHttpPostTask->HttpUpStatus(HTTP_UPLOAD_FINISH);
 	}
 	return nSize;
@@ -439,7 +431,7 @@ size_t CHttpPostTask::WriteData(void *pData, size_t size, size_t nMemBlk, void *
 int CHttpPostTask::Debug(CURL *pCurl, curl_infotype type, char *data, size_t size, void *pUserArg)
 {
 	const char *pText = NULL;
-	(void)pCurl; /* prevent compiler warning */
+	(void) pCurl; /* prevent compiler warning */
 
 	CHttpCli *pHttpCli = CSingleton<CHttpCli>::Instance();
 	THttpParam &param = pHttpCli->HttpParam();
@@ -448,7 +440,7 @@ int CHttpPostTask::Debug(CURL *pCurl, curl_infotype type, char *data, size_t siz
 	case CURLINFO_TEXT:
 		HTTPCLI_LOG(param, LOGTYPE, "== Info: %s", data);
 	default: /* in case a new one is introduced to shock us */
-	 return 0;
+		return 0;
 	case CURLINFO_HEADER_OUT:
 		pText = "=> Send header";
 		break;

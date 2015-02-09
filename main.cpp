@@ -62,28 +62,28 @@ int main (int argc, char** argv)
 	if (argc <= 1)
 	{
 		Usage(param);
-		return 0;
+		return (0);
 	}
 
 	srand(time(NULL));
 
 	if (ParseCmdLine(argc, argv, param) != 0)
 	{
-		return -1;
+		return (-1);
 	}
 
 	CHttpCli* pHttpCli = CSingleton<CHttpCli>::Instance();
 	if (0 != pHttpCli->Init(param))
 	{
-		return -1;
+		return (-1);
 	}
 	if (0 != pHttpCli->Start())
 	{
-		return -1;
+		return (-1);
 	}
 	pHttpCli->CleanUp();
 
-	return 0;
+	return (0);
 }
 
 static int ParseCmdLine(int argc, char *argv[], THttpParam &param)
@@ -103,7 +103,7 @@ static int ParseCmdLine(int argc, char *argv[], THttpParam &param)
 			if (strncmp(szHelp, szLongOpts[nIdx].name, strlen(szHelp)) == 0)
 			{
 				Usage(param);
-				return 0;
+				return (0);
 			}
 			else if (strncmp(szBlkSize, szLongOpts[nIdx].name, strlen(szBlkSize)) == 0)
 			{
@@ -140,12 +140,12 @@ static int ParseCmdLine(int argc, char *argv[], THttpParam &param)
 			else if (strncmp(szVersion, szLongOpts[nIdx].name, strlen(szVersion)) == 0)
 			{
 				ShowVersion(param);
-				return 0;
+				return (0);
 			}
 			break;
 		case 'h':
 			Usage(param);
-			return 0;
+			return (0);
 		case 'b':
 			param.BlkSize((uint32_t)atoi(optarg));
 			break;
@@ -172,10 +172,10 @@ static int ParseCmdLine(int argc, char *argv[], THttpParam &param)
 			break;
 		case 'V':
 			ShowVersion(param);
-			return 0;
+			return (0);
 		default:
 			Usage(param);
-			return 0;
+			return (0);
 		}
 	}
 
@@ -190,7 +190,7 @@ static int ParseCmdLine(int argc, char *argv[], THttpParam &param)
 	if (!(optind < argc))
 	{
 		HTTPCLI_LOG(param, ERRORTYPE, "no request url found!!!");
-		return -1;
+		return (-1);
 	}
 	param.ReqUrl(argv[optind]);
 
@@ -211,7 +211,7 @@ static int ParseCmdLine(int argc, char *argv[], THttpParam &param)
 	if (stat(param.PostFile().c_str(), &s) < 0)
 	{
 		HTTPCLI_LOG(param, ERRORTYPE, "stat: %s", strerror(errno));
-		return -1;
+		return (-1);
 	}
 	param.FileSize(s.st_size);
 
@@ -261,7 +261,7 @@ static int ParseCmdLine(int argc, char *argv[], THttpParam &param)
 	}
 	HTTPCLI_LOG(param, LOGTYPE, "httpcli param: \r\n%s", param.ToString().c_str());
 
-	return 0;
+	return (0);
 }
 
 static void Usage(const THttpParam &param)

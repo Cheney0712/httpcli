@@ -17,17 +17,14 @@
 
 int CHttpCli::Start()
 {
-	int nRet = 0;
-
-	if (0 != CSingleton<CUploadMgr>::Instance()->StartUpload())
-	{
-		return (nRet = -1);
-	}
 	THttpParam &param = CSingleton<CHttpCli>::Instance()->HttpParam();
-	curl_multi_perform(m_pMultiHandle, &m_nRunning);
-
+	int nRet = 0, m_nPreRunning = 0, m_nRunning = 0;
+	while (0 == CSingleton<CUploadMgr>::Instance()->StartUpload())
+		;
 	do
 	{
+		CSingleton<CUploadMgr>::Instance()->CheckUpload();
+
 		struct timeval timeout;
 		int rc, maxfd = -1; /* select() return code */
 		long curl_timeo = -1;
@@ -43,7 +40,8 @@ int CHttpCli::Start()
 		timeout.tv_usec = 0;
 
 		curl_multi_timeout(m_pMultiHandle, &curl_timeo);
-		if (curl_timeo >= 0) {
+		if (curl_timeo >= 0)
+		{
 			timeout.tv_sec = curl_timeo / 1000;
 			if (timeout.tv_sec > 1)
 			{
@@ -70,17 +68,11 @@ int CHttpCli::Start()
 		 no fds ready yet so we call select(0, ...) --or Sleep() on Windows--
 		 to sleep 100ms, which is the minimum suggested value in the
 		 curl_multi_fdset() doc. */
-
 		if (maxfd == -1)
 		{
-#ifdef _WIN32
-			Sleep(100);
-			rc = 0;
-#else
 			/* Portable sleep for platforms other than Windows. */
 			struct timeval wait = { 0, 100 * 1000 }; /* 100ms */
 			rc = select(0, NULL, NULL, NULL, &wait);
-#endif
 		}
 		else
 		{
@@ -96,22 +88,41 @@ int CHttpCli::Start()
 			nRet = -1;
 			break;
 		case 0:
-			/*
-			 * timeout
-			 * 1. check task
-			 * 2. add new POST task
-			 */
-			CSingleton<CUploadMgr>::Instance()->CheckUpload();
-			CSingleton<CUploadMgr>::Instance()->StartUpload();
-			break;
+			/* timeout */
 		default:
 			/* readable/writable sockets */
-//			CSingleton<CUploadMgr>::Instance()->CheckUpload();
-//			CSingleton<CUploadMgr>::Instance()->StartUpload();
 			curl_multi_perform(m_pMultiHandle, &m_nRunning);
 			break;
 		}
+
+		if (m_nPreRunning != m_nRunning)
+		{
+			CheckInfo();
+			m_nPreRunning = m_nRunning;
+		}
+
 	} while (m_nRunning);
 
-	return nRet;
+	return (nRet);
+}
+
+void CHttpCli::CheckInfo()
+{
+	THttpParam &param = CSingleton<CHttpCli>::Instance()->HttpParam();
+	CURLMsg *pMsg = NULL;
+	do
+	{
+		int nMsgNum = 0;
+		pMsg = curl_multi_info_read(m_pMultiHandle, &nMsgNum);
+		for (int i = 0; i < nMsgNum; ++i)
+		{
+			/* This easy handle has completed. 'result' contains
+			 the CURLcode of the transfer */
+			if (CURLMSG_DONE == pMsg[i].msg)
+			{
+				HTTPCLI_LOG(param, LOGTYPE, "easy handle has completed: %d", pMsg[i].data.result);
+				curl_multi_remove_handle(m_pMultiHandle, pMsg[i].easy_handle);
+			}
+		}
+	} while (NULL != pMsg);
 }

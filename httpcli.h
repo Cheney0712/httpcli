@@ -39,14 +39,15 @@ public:
 	const THttpParam &HttpParam() const;
 
 private:
+	void CheckInfo();
+
+private:
 	CURLM *m_pMultiHandle;
-	int m_nRunning;
 	THttpParam m_httpParam;
 };
 
 inline CHttpCli::CHttpCli()
 	: m_pMultiHandle(NULL)
-	, m_nRunning(0)
 	, m_httpParam()
 {
 }

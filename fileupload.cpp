@@ -47,7 +47,7 @@ int CFileUpload::StartPost()
 	}
 	if (RestUpTask().empty())
 	{
-		HTTPCLI_LOG(param, ERRORTYPE, "no more POST task, maybe it has upload completely");
+		HTTPCLI_LOG(param, ERRORTYPE, "no more POST task, maybe it has uploaded completely");
 		return nRet;
 	}
 
@@ -68,21 +68,21 @@ int CFileUpload::StartPost()
 	}
 	else if (param.UpType() == UPTYPE_UPBLK)
 	{
-		if (m_eRecovery == UPRECOVERY_INVALID)
-		{
-			HTTPCLI_LOG(param, LOGTYPE, "resumable POST in block, "
-						"recovery upscene firstly");
-			CHttpTask *pHttpTask = new CHttpPostTask(m_pMultiHandle, this);
-			pHttpTask->Init(postRng);
-			if (0 != (nRet = pHttpTask->UpRecovery()))
-			{
-				delete pHttpTask; pHttpTask = NULL;
-				return nRet;
-			}
-			m_eRecovery = UPRECOVERY_UNFINISHED;
-			m_httpTaskVec.push_back(pHttpTask);
-		}
-		else if (m_eRecovery == UPRECOVERY_FINISH)
+//		if (m_eRecovery == UPRECOVERY_INVALID)
+//		{
+//			HTTPCLI_LOG(param, LOGTYPE, "resumable POST in block, "
+//						"recovery upscene firstly");
+//			CHttpTask *pHttpTask = new CHttpPostTask(m_pMultiHandle, this);
+//			pHttpTask->Init(postRng);
+//			if (0 != (nRet = pHttpTask->UpRecovery()))
+//			{
+//				delete pHttpTask; pHttpTask = NULL;
+//				return nRet;
+//			}
+//			m_eRecovery = UPRECOVERY_UNFINISHED;
+//			m_httpTaskVec.push_back(pHttpTask);
+//		}
+//		else if (m_eRecovery == UPRECOVERY_FINISH)
 		{
 			HTTPCLI_LOG(param, LOGTYPE, "resumable POST in block");
 			const std::vector<range> &rngVec = RestUpTask();
